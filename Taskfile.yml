@@ -1,0 +1,39 @@
+version: "3"
+
+vars:
+  DAY:
+    sh: date +%d
+  DAY_NO_PAD:
+    sh: echo "{{.DAY}}" | sed 's/^0*//'
+  TESTFILE: "test.txt"
+  INPUTFILE: "input.txt"
+
+tasks:
+  init:
+    cmds:
+      - go run prep/main.go
+      - task openbrowser
+
+  openbrowser:
+    cmds:
+      - open https://adventofcode.com/2025/day/{{.DAY_NO_PAD}}
+
+  test1:
+    env:
+      DEBUG: "1"
+    cmds:
+      - go run {{.DAY}}/main.go 1 {{.DAY}}/{{.TESTFILE}}
+
+  test2:
+    env:
+      DEBUG: "1"
+    cmds:
+      - go run {{.DAY}}/main.go 2 {{.DAY}}/{{.TESTFILE}}
+
+  run1:
+    cmds:
+      - go run {{.DAY}}/main.go 1 {{.DAY}}/{{.INPUTFILE}}
+
+  run2:
+    cmds:
+      - go run {{.DAY}}/main.go 2 {{.DAY}}/{{.INPUTFILE}}
