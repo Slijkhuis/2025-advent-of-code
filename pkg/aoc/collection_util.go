@@ -18,6 +18,14 @@ func Sum[T ~float32 | ~float64 | ~int | ~int64](collection []T) T {
 	return sum
 }
 
+func Product[T ~float32 | ~float64 | ~int | ~int64](collection []T) T {
+	product := T(1)
+	for i := range collection {
+		product *= collection[i]
+	}
+	return product
+}
+
 func In[T comparable](collection []T, value T) bool {
 	for i := range collection {
 		if collection[i] == value {
