@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/Slijkhuis/2025-advent-of-code/pkg/aoc"
 )
@@ -35,6 +36,10 @@ func (p Point) DistanceTo(other Point) float64 {
 	dy := float64(p.Y - other.Y)
 	dz := float64(p.Z - other.Z)
 	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
+func (p Point) String() string {
+	return fmt.Sprintf("(%d,%d,%d)", p.X, p.Y, p.Z)
 }
 
 type Distance struct {
@@ -146,7 +151,79 @@ func part1() {
 }
 
 func part2() {
+	t := time.Now()
+
+	var junctions []Point
+	var distances []Distance
+
 	for line := range aoc.LinesFromFile(os.Args[2]) {
-		fmt.Println(line)
+		ints := aoc.IntsFromString(line)
+		p1 := Point{X: ints[0], Y: ints[1], Z: ints[2]}
+
+		for _, p2 := range junctions {
+			distances = append(distances, Distance{
+				From:     p1,
+				To:       p2,
+				Distance: p1.DistanceTo(p2),
+			})
+		}
+
+		junctions = append(junctions, p1)
+	}
+
+	sort.Slice(distances, func(i, j int) bool {
+		return distances[i].Distance < distances[j].Distance
+	})
+
+	var circuits []*Circuit
+	circuitMembership := map[Point]*Circuit{}
+
+	for _, dist := range distances {
+		c1, ok1 := circuitMembership[dist.From]
+		c2, ok2 := circuitMembership[dist.To]
+
+		if ok1 && ok2 {
+			if c1 == c2 {
+				continue
+			} else {
+				for member := range c2.Members {
+					c1.Members[member] = struct{}{}
+					circuitMembership[member] = c1
+					c2.Members = nil
+				}
+			}
+		} else if ok1 {
+			c1.Members[dist.To] = struct{}{}
+			circuitMembership[dist.To] = c1
+		} else if ok2 {
+			c2.Members[dist.From] = struct{}{}
+			circuitMembership[dist.From] = c2
+		} else {
+			newCircuit := &Circuit{Members: map[Point]struct{}{
+				dist.From: {},
+				dist.To:   {},
+			}}
+			circuits = append(circuits, newCircuit)
+			circuitMembership[dist.From] = newCircuit
+			circuitMembership[dist.To] = newCircuit
+		}
+
+		var newCircuits []*Circuit
+		aoc.Debug(dist.From)
+		aoc.Debug("Circuits:")
+		for _, c := range circuits {
+			if len(c.Members) > 0 {
+				newCircuits = append(newCircuits, c)
+				aoc.Debug(aoc.Keys(c.Members))
+			}
+		}
+		circuits = newCircuits
+		aoc.Debug("len(newCircuits[0].Members) = ", len(newCircuits[0].Members))
+		aoc.Debug("---")
+
+		if len(newCircuits) == 1 && len(newCircuits[0].Members) == len(junctions) {
+			aoc.Println(t, dist.From.X*dist.To.X)
+			return
+		}
 	}
 }
