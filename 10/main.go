@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/Slijkhuis/2025-advent-of-code/pkg/aoc"
@@ -104,7 +105,89 @@ func part1() {
 }
 
 func part2() {
-	for line := range aoc.LinesFromFile(os.Args[2]) {
-		fmt.Println(line)
+	c := 0
+	prefix := "test"
+	if !aoc.DebugMode {
+		prefix = "solve"
 	}
+
+	ans := 0
+
+	for line := range aoc.LinesFromFile(os.Args[2]) {
+		filename := fmt.Sprintf("10/%s-%02d.smt2", prefix, c)
+		f, err := os.Create(filename)
+		aoc.Fail(err)
+		c++
+
+		fields := strings.Fields(line)
+		numberOfButtons := len(fields) - 2
+		for i := 0; i < numberOfButtons; i++ {
+			fmt.Fprintf(f, "(declare-const b%d Int)\n", i)
+		}
+		fmt.Fprintln(f, "")
+
+		for i := 0; i < numberOfButtons; i++ {
+			fmt.Fprintf(f, "(assert (>= b%d 0))\n", i)
+		}
+		fmt.Fprintln(f, "")
+
+		targetJoltages := aoc.IntsFromString(fields[len(fields)-1])
+		buttonsPerJoltage := make([][]int, len(targetJoltages))
+		for i := range targetJoltages {
+			buttonsPerJoltage[i] = []int{}
+		}
+
+		for i := 1; i < len(fields)-1; i++ {
+			buttons := aoc.IntsFromString(fields[i])
+			for _, button := range buttons {
+				buttonsPerJoltage[button] = append(buttonsPerJoltage[button], i-1)
+			}
+		}
+
+		for joltage, buttons := range buttonsPerJoltage {
+			fmt.Fprintf(f, "; ")
+			fmt.Fprintf(f, "%s", strings.Join(aoc.Map(buttons, func(b int) string {
+				return fmt.Sprintf("b%d", b)
+			}), " + "))
+			fmt.Fprintf(f, " = %d\n", targetJoltages[joltage])
+
+			fmt.Fprintf(f, "(assert (= (+")
+			for _, button := range buttons {
+				fmt.Fprintf(f, " b%d", button)
+			}
+			fmt.Fprintf(f, ") %d))\n", targetJoltages[joltage])
+
+			fmt.Fprintln(f, "")
+		}
+
+		allButtons := make([]string, numberOfButtons)
+		for i := 0; i < numberOfButtons; i++ {
+			allButtons[i] = fmt.Sprintf("b%d", i)
+		}
+
+		fmt.Fprintf(f, "(minimize (+ %s))\n\n", strings.Join(allButtons, " "))
+
+		fmt.Fprintln(f, "(check-sat)")
+		fmt.Fprintln(f, "(get-model)")
+		fmt.Fprintf(f, "(get-value ((+ %s)))\n", strings.Join(allButtons, " "))
+
+		f.Close()
+
+		cmd := exec.Command("./z3/bin/z3", filename)
+		output, err := cmd.CombinedOutput()
+		aoc.Fail(err)
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		ints := aoc.IntsFromString(lines[len(lines)-1])
+		minimumNumberOfPresses := ints[len(ints)-1]
+		aoc.Debug(minimumNumberOfPresses)
+		ans += minimumNumberOfPresses
+
+		if !aoc.DebugMode {
+			err := os.Remove(filename)
+			aoc.Fail(err)
+		}
+	}
+
+	fmt.Println("")
+	fmt.Println(ans)
 }
