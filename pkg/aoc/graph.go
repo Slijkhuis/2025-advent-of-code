@@ -320,3 +320,57 @@ func (g *Graph[K, T]) Neighbors(node *Node[K, T]) []*Node[K, T] {
 	}
 	return neighbors
 }
+
+func (g *Graph[K, T]) PathExists(from, to *Node[K, T]) bool {
+	visited := make(map[K]bool)
+	return g.pathExistsDFS(from, to, visited)
+}
+
+func (g *Graph[K, T]) pathExistsDFS(current, target *Node[K, T], visited map[K]bool) bool {
+	if current.Key == target.Key {
+		return true
+	}
+
+	visited[current.Key] = true
+
+	for edge := range g.Edges {
+		if edge.From.Key == current.Key && !visited[edge.To.Key] {
+			if g.pathExistsDFS(g.Nodes[edge.To.Key], target, visited) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (g *Graph[K, T]) CountPathsInDAG(from, to *Node[K, T]) int {
+	adj := make(map[K][]*Node[K, T])
+
+	for edge := range g.Edges {
+		adj[edge.From.Key] = append(adj[edge.From.Key], g.Nodes[edge.To.Key])
+	}
+
+	memo := make(map[K]int)
+
+	var dfs func(currentKey K) int
+	dfs = func(currentKey K) int {
+		if currentKey == to.Key {
+			return 1
+		}
+
+		if count, exists := memo[currentKey]; exists {
+			return count
+		}
+
+		totalPaths := 0
+		for _, neighbor := range adj[currentKey] {
+			totalPaths += dfs(neighbor.Key)
+		}
+
+		memo[currentKey] = totalPaths
+		return totalPaths
+	}
+
+	return dfs(from.Key)
+}
